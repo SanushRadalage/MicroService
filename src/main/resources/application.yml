@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    password: ''
+    url: jdbc:mysql://localhost:3306/swivelmeet
+    username: root
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL5Dialect
+    show-sql: true
+
+inviteesLimit: 5
+
+
+logging:
+  level:
+    com:
+      example: TRACE
+    org:
+      springframework: ERROR
+  file: E:/templete/log.log
+
+
