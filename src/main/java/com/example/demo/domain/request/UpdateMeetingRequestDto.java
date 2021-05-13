@@ -26,6 +26,7 @@ public class UpdateMeetingRequestDto extends RequestDto {
     private boolean videoOnAtJoin;
     private boolean micOnAtJoin;
     private boolean recordStatus;
+    private boolean isDeleted;
 
     public UpdateMeetingRequestDto(Meeting meeting) {
         meetingId = meeting.getMeetingId();
@@ -38,6 +39,7 @@ public class UpdateMeetingRequestDto extends RequestDto {
         this.videoOnAtJoin = meeting.isVideoOnAtJoin();
         this.micOnAtJoin = meeting.isMicOnAtJoin();
         this.recordStatus = meeting.isRecordStatus();
+        this.isDeleted = meeting.isDeleted();
     }
 
     /**

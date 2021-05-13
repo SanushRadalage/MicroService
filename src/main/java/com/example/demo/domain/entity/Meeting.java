@@ -49,7 +49,6 @@ public class Meeting {
         this.createdAt = System.currentTimeMillis();
         this.updatedAt = System.currentTimeMillis();
         this.isDeleted = false;
-
         this.name = meetingRequestDto.getName();
         this.dateTime = meetingRequestDto.getDateTime();
         this.createUserId = meetingRequestDto.getCreateUserId();
@@ -74,6 +73,6 @@ public class Meeting {
         this.micOnAtJoin = updateMeetingRequestDto.isMicOnAtJoin();
         this.recordStatus = updateMeetingRequestDto.isRecordStatus();
         this.updatedAt = System.currentTimeMillis();
-        this.isDeleted = false;
+        this.isDeleted = updateMeetingRequestDto.isDeleted();
     }
 }

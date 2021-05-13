@@ -271,6 +271,40 @@ public class MeetingController {
     }
 
     /**
+     * Update meeting delete status
+     *
+     * @param userId
+     * @param timeZone
+     * @param meetingId
+     * @return
+     */
+    @PutMapping("/{meetingId}")
+    public ResponseEntity<ResponseWrapper> updateMeetingDeleteStatus(@RequestHeader(name = "X-UserId") String userId,
+                                                                     @RequestHeader(name = "X-TimeZone") String timeZone,
+                                                                     @PathVariable String meetingId) {
+        try {
+            if (!isValidTimeZone(timeZone)) {
+                logger.debug("Invalid time zone of userId: {}, meetingId: {}, Time zone: {}", userId,
+                        meetingId, timeZone);
+                return getErrorResponse(ErrorsResponseStatusType.INVALID_TIMEZONE);
+            }
+
+            meetingService.updateMeetingDeleteStatus(meetingId);
+
+            logger.debug("Successfully meeting delete flag updated by userId {}, meetingId {}",
+                    userId, meetingId);
+            return getSuccessResponse(null, SuccessResponseStatusType.DELETE_MEETING);
+
+        } catch (InvalidMeetingException e) {
+            logger.error("Error when update delete flag, meetingId {}", meetingId, e);
+            return getErrorResponse(ErrorsResponseStatusType.INVALID_MEETING);
+        } catch (SwivelMeetServiceException e) {
+            logger.error("Error when update delete flag, meetingId {}", meetingId, e);
+            return getInternalServerError();
+        }
+    }
+
+    /**
      * Create meeting response dto using meeting request dto
      *
      * @param meetingRequestDto get from request body
@@ -292,7 +326,7 @@ public class MeetingController {
     private MeetingResponseDto createUpdateMeetingResponse(UpdateMeetingRequestDto updateMeetingRequestDto, String objectToJson) {
         logger.debug("meeting updated by userId {}, meetingRequestDto: {}", updateMeetingRequestDto.getCreateUserId(), objectToJson);
         Meeting meeting = new Meeting(updateMeetingRequestDto);
-         Meeting meeting1  = meetingService.updateMeeting(meeting);
+        Meeting meeting1 = meetingService.updateMeeting(meeting);
         return new MeetingResponseDto(meeting1);
     }
 

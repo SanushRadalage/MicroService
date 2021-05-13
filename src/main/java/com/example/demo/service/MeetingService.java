@@ -19,6 +19,7 @@ import java.util.Optional;
 @Service
 public class MeetingService {
 
+    private static final String INVALID_MEETING = "Invalid meeting Id.";
     MeetingRepository meetingRepository;
 
     @Autowired
@@ -47,14 +48,17 @@ public class MeetingService {
      */
     public Meeting getMeeting(String meetingId) {
         try {
-            if (meetingRepository.findById(meetingId).isPresent()) {
-                if (!meetingRepository.findById(meetingId).get().isDeleted()) {
-                    return meetingRepository.findById(meetingId).get();
+            Optional<Meeting> optionalMeetingFromDb = meetingRepository.findById(meetingId);
+
+            if (optionalMeetingFromDb.isPresent()) {
+                Meeting meetingFromDb = optionalMeetingFromDb.get();
+                if (!meetingFromDb.isDeleted()) {
+                    return meetingFromDb;
                 } else {
-                    throw new InvalidMeetingException("Invalid meeting Id.");
+                    throw new InvalidMeetingException(INVALID_MEETING);
                 }
             } else {
-                throw new InvalidMeetingException("Invalid meeting Id.");
+                throw new InvalidMeetingException(INVALID_MEETING);
             }
         } catch (DataAccessException e) {
             throw new SwivelMeetServiceException("Read meeting from database was failed.", e);
@@ -71,7 +75,7 @@ public class MeetingService {
     public Page<Meeting> listAllMeetings(int page, int size) {
         try {
             Pageable paging = PageRequest.of(page, size);
-            return meetingRepository.findAll(paging);
+            return meetingRepository.findAllMeetings(paging);
 
         } catch (DataAccessException e) {
             throw new SwivelMeetServiceException("Read meetings from database was failed.", e);
@@ -87,12 +91,41 @@ public class MeetingService {
 
             if (optionalMeetingFromDb.isPresent()) {
                 Meeting meetingFromDb = optionalMeetingFromDb.get();
-                long createdAt = meetingFromDb.getCreatedAt();
-                meeting.setCreatedAt(createdAt);
-                return meetingRepository.save(meeting);
+                if (!meetingFromDb.isDeleted()) {
+                    long createdAt = meetingFromDb.getCreatedAt();
+                    meeting.setCreatedAt(createdAt);
+                    return meetingRepository.save(meeting);
+                } else {
+                    throw new InvalidMeetingException(INVALID_MEETING);
+                }
             } else
-                throw new InvalidMeetingException("Invalid meeting Id.");
+                throw new InvalidMeetingException(INVALID_MEETING);
 
+        } catch (DataAccessException e) {
+            throw new SwivelMeetServiceException("Read/Write meetings from database was failed.", e);
+        }
+    }
+
+    /**
+     * Update meeting delete flag
+     * @param meetingId
+     * @return
+     */
+    public void updateMeetingDeleteStatus(String meetingId) {
+        try {
+            Optional<Meeting> optionalMeetingFromDb = meetingRepository.findById(meetingId);
+
+            if (optionalMeetingFromDb.isPresent()) {
+                Meeting meetingFromDb = optionalMeetingFromDb.get();
+                if (!meetingFromDb.isDeleted()) {
+                    meetingFromDb.setDeleted(true);
+                    meetingFromDb.setUpdatedAt(System.currentTimeMillis());
+                    meetingRepository.save(meetingFromDb);
+                } else {
+                    throw new InvalidMeetingException(INVALID_MEETING);
+                }
+            } else
+                throw new InvalidMeetingException(INVALID_MEETING);
         } catch (DataAccessException e) {
             throw new SwivelMeetServiceException("Read/Write meetings from database was failed.", e);
         }
@@ -103,7 +136,7 @@ public class MeetingService {
             if (meetingRepository.findById(meetingId).isPresent())
                 meetingRepository.deleteById(meetingId);
             else
-                throw new InvalidMeetingException("Invalid meeting Id.");
+                throw new InvalidMeetingException(INVALID_MEETING);
         } catch (DataAccessException e) {
             throw new SwivelMeetServiceException("Read/Delete meeting from database was failed.", e);
         }
