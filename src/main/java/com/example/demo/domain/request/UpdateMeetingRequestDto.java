@@ -10,6 +10,9 @@ import javax.persistence.ElementCollection;
 import java.sql.Timestamp;
 import java.util.List;
 
+/**
+ * data transfer object for update meeting request
+ */
 @Component
 @Getter
 @Setter

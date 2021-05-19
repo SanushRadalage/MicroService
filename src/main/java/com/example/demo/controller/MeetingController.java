@@ -5,12 +5,12 @@ import com.example.demo.configuration.Translator;
 import com.example.demo.domain.entity.Meeting;
 import com.example.demo.domain.request.MeetingRequestDto;
 import com.example.demo.domain.request.UpdateMeetingRequestDto;
-import com.example.demo.domain.response.MeetingListResponseDto;
-import com.example.demo.domain.response.MeetingResponseDto;
-import com.example.demo.domain.response.ResponseDto;
+import com.example.demo.domain.request.UserRequestDto;
+import com.example.demo.domain.response.*;
 import com.example.demo.exception.InvalidMeetingException;
 import com.example.demo.exception.SwivelMeetServiceException;
 import com.example.demo.service.MeetingService;
+import com.example.demo.service.UserService;
 import com.example.demo.utils.ErrorsResponseStatusType;
 import com.example.demo.utils.ResponseStatusType;
 import com.example.demo.utils.SuccessResponseStatusType;
@@ -48,14 +48,18 @@ public class MeetingController {
     private static final String INVALID_TIME_LOG = "Invalid time zone of userId: {}, Time zone: {}";
     private final int inviteesLimit;
     private final MeetingService meetingService;
+    private final UserService userService;
     Logger logger = LoggerFactory.getLogger(MeetingController.class);
     ResourceBundleMessageSourceBean resourceBundleMessageSourceBean = new ResourceBundleMessageSourceBean();
     Translator translator = new Translator(resourceBundleMessageSourceBean.messageSource());
 
     @Autowired
-    public MeetingController(MeetingService meetingService, @Value("${inviteesLimit}") final int inviteesLimit) {
+    public MeetingController(MeetingService meetingService,
+                             @Value("${inviteesLimit}") final int inviteesLimit,
+                             UserService userService) {
         this.meetingService = meetingService;
         this.inviteesLimit = inviteesLimit;
+        this.userService = userService;
     }
 
     /**
@@ -98,7 +102,8 @@ public class MeetingController {
                 return getErrorResponse(ErrorsResponseStatusType.LIMIT_EXCEED);
             }
 
-            return getSuccessResponse(createMeetingResponse(meetingRequestDto, objectToJson), SuccessResponseStatusType.CREATE_MEETING);
+            return getSuccessResponse(createMeetingResponse(meetingRequestDto, objectToJson),
+                    SuccessResponseStatusType.CREATE_MEETING);
 
         } catch (SwivelMeetServiceException e) {
             logger.error("Error when create meeting by userId: {}", userId, e);
@@ -125,14 +130,7 @@ public class MeetingController {
                 return getErrorResponse(ErrorsResponseStatusType.INVALID_TIMEZONE);
             }
 
-            Meeting meeting = meetingService.getMeeting(meetingId);
-
-            MeetingResponseDto meetingResponseDto = new MeetingResponseDto(meeting);
-            String objectToJson = meetingResponseDto.toLogJson();
-
-            logger.debug("Successfully meeting read by userId {}, meetingId {}, meeting response {}",
-                    userId, meeting, objectToJson);
-            return getSuccessResponse(meetingResponseDto, SuccessResponseStatusType.READ_MEETING);
+            return createMeetingResponse(meetingId, userId);
 
         } catch (InvalidMeetingException e) {
             logger.error("Error when read meeting, meetingId {}", meetingId, e);
@@ -141,6 +139,28 @@ public class MeetingController {
             logger.error("Error when read meeting, meetingId {}", meetingId, e);
             return getInternalServerError();
         }
+    }
+
+    /**
+     * create meeting response by adding user object list from external user API
+     *
+     * @param meetingId
+     * @param userId
+     * @return
+     */
+    ResponseEntity<ResponseWrapper> createMeetingResponse(String meetingId, String userId) {
+        Meeting meeting = meetingService.getMeeting(meetingId);
+        List<String> userIds = new ArrayList<>(meeting.getInviteUserIds());
+        userIds.add(meeting.getCreateUserId());
+
+        UserResponseDto userResponseDto = userService.getUserList(new UserRequestDto(userIds));
+        ReadMeetingResponseDto readMeetingResponseDto = new ReadMeetingResponseDto(meeting, userResponseDto);
+
+        String objectToJson = readMeetingResponseDto.toLogJson();
+
+        logger.debug("Successfully meeting read by userId {}, meetingId {}, meeting response {}",
+                userId, meeting, objectToJson);
+        return getSuccessResponse(readMeetingResponseDto, SuccessResponseStatusType.READ_MEETING);
     }
 
     /**
@@ -236,15 +256,41 @@ public class MeetingController {
         }
     }
 
+    //    @DeleteMapping("/{meetingId}")
+//    public ResponseEntity<ResponseWrapper> deleteMeeting(@RequestHeader(name = "X-UserId") String userId,
+//                                                         @RequestHeader(name = "X-TimeZone") String timeZone,
+//                                                         @PathVariable String meetingId) {
+//        try {
+//            if (!isValidTimeZone(timeZone)) {
+//                logger.debug("Invalid time zone of userId: {}, meetingId: {}, Time zone: {}", userId,
+//                        meetingId, timeZone);
+//                return getErrorResponse(ErrorsResponseStatusType.INVALID_TIMEZONE);
+//            }
+//
+//            meetingService.deleteMeeting(meetingId);
+//
+//            logger.debug("Successfully meeting deleted by userId {}, meetingId {}",
+//                    userId, meetingId);
+//            return getSuccessResponse(null, SuccessResponseStatusType.DELETE_MEETING);
+//
+//        } catch (InvalidMeetingException e) {
+//            logger.error("Error when delete meeting, meetingId {}", meetingId, e);
+//            return getErrorResponse(ErrorsResponseStatusType.INVALID_MEETING);
+//        } catch (SwivelMeetServiceException e) {
+//            logger.error("Error when delete meeting, meetingId {}", meetingId, e);
+//            return getInternalServerError();
+//        }
+//    }
+
     /**
-     * Delete meeting by Id
+     * Delete meeting
      *
      * @param userId
      * @param timeZone
      * @param meetingId
      * @return
      */
-    @DeleteMapping("/{meetingId}")
+    @PutMapping("/{meetingId}")
     public ResponseEntity<ResponseWrapper> deleteMeeting(@RequestHeader(name = "X-UserId") String userId,
                                                          @RequestHeader(name = "X-TimeZone") String timeZone,
                                                          @PathVariable String meetingId) {
@@ -271,47 +317,14 @@ public class MeetingController {
     }
 
     /**
-     * Update meeting delete status
-     *
-     * @param userId
-     * @param timeZone
-     * @param meetingId
-     * @return
-     */
-    @PutMapping("/{meetingId}")
-    public ResponseEntity<ResponseWrapper> updateMeetingDeleteStatus(@RequestHeader(name = "X-UserId") String userId,
-                                                                     @RequestHeader(name = "X-TimeZone") String timeZone,
-                                                                     @PathVariable String meetingId) {
-        try {
-            if (!isValidTimeZone(timeZone)) {
-                logger.debug("Invalid time zone of userId: {}, meetingId: {}, Time zone: {}", userId,
-                        meetingId, timeZone);
-                return getErrorResponse(ErrorsResponseStatusType.INVALID_TIMEZONE);
-            }
-
-            meetingService.updateMeetingDeleteStatus(meetingId);
-
-            logger.debug("Successfully meeting delete flag updated by userId {}, meetingId {}",
-                    userId, meetingId);
-            return getSuccessResponse(null, SuccessResponseStatusType.DELETE_MEETING);
-
-        } catch (InvalidMeetingException e) {
-            logger.error("Error when update delete flag, meetingId {}", meetingId, e);
-            return getErrorResponse(ErrorsResponseStatusType.INVALID_MEETING);
-        } catch (SwivelMeetServiceException e) {
-            logger.error("Error when update delete flag, meetingId {}", meetingId, e);
-            return getInternalServerError();
-        }
-    }
-
-    /**
      * Create meeting response dto using meeting request dto
      *
      * @param meetingRequestDto get from request body
      * @return meeting response dto
      */
     private MeetingResponseDto createMeetingResponse(MeetingRequestDto meetingRequestDto, String objectToJson) {
-        logger.debug("meeting created by userId {}, meetingRequestDto: {}", meetingRequestDto.getCreateUserId(), objectToJson);
+        logger.debug("meeting created by userId {}, meetingRequestDto: {}", meetingRequestDto.getCreateUserId(),
+                objectToJson);
         Meeting meeting = new Meeting(meetingRequestDto);
         meetingService.createMeeting(meeting);
         return new MeetingResponseDto(meeting);
@@ -323,11 +336,13 @@ public class MeetingController {
      * @param updateMeetingRequestDto get from request body
      * @return meeting response dto
      */
-    private MeetingResponseDto createUpdateMeetingResponse(UpdateMeetingRequestDto updateMeetingRequestDto, String objectToJson) {
-        logger.debug("meeting updated by userId {}, meetingRequestDto: {}", updateMeetingRequestDto.getCreateUserId(), objectToJson);
+    private MeetingResponseDto createUpdateMeetingResponse(UpdateMeetingRequestDto updateMeetingRequestDto,
+                                                           String objectToJson) {
+        logger.debug("meeting updated by userId {}, meetingRequestDto: {}", updateMeetingRequestDto.getCreateUserId(),
+                objectToJson);
         Meeting meeting = new Meeting(updateMeetingRequestDto);
-        Meeting meeting1 = meetingService.updateMeeting(meeting);
-        return new MeetingResponseDto(meeting1);
+        Meeting returnedMeeting = meetingService.updateMeeting(meeting);
+        return new MeetingResponseDto(returnedMeeting);
     }
 
 
@@ -367,7 +382,11 @@ public class MeetingController {
      * @return response entity
      */
     private ResponseEntity<ResponseWrapper> getInternalServerError() {
-        ResponseWrapper responseWrapper = new ErrorResponseWrapper(ResponseStatusType.ERROR, ErrorsResponseStatusType.INTERNAL_SERVERERROR.getMessage(), null, translator.toLocale(ErrorsResponseStatusType.getCodeString(ErrorsResponseStatusType.INTERNAL_SERVERERROR.getErrorCode())), ErrorsResponseStatusType.INTERNAL_SERVERERROR.getErrorCode());
+        ResponseWrapper responseWrapper = new ErrorResponseWrapper(ResponseStatusType.ERROR,
+                ErrorsResponseStatusType.INTERNAL_SERVERERROR.getMessage(), null,
+                translator.toLocale(ErrorsResponseStatusType.
+                        getCodeString(ErrorsResponseStatusType.INTERNAL_SERVERERROR.getErrorCode())),
+                ErrorsResponseStatusType.INTERNAL_SERVERERROR.getErrorCode());
         return new ResponseEntity<>(responseWrapper, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
@@ -376,7 +395,10 @@ public class MeetingController {
      * @return response entity
      */
     private ResponseEntity<ResponseWrapper> getErrorResponse(ErrorsResponseStatusType errorsResponseStatusType) {
-        ResponseWrapper responseWrapper = new ErrorResponseWrapper(ResponseStatusType.ERROR, errorsResponseStatusType.getMessage(), null, translator.toLocale(ErrorsResponseStatusType.getCodeString(errorsResponseStatusType.getErrorCode())), errorsResponseStatusType.getErrorCode());
+        ResponseWrapper responseWrapper = new ErrorResponseWrapper(ResponseStatusType.ERROR,
+                errorsResponseStatusType.getMessage(), null,
+                translator.toLocale(ErrorsResponseStatusType.getCodeString(errorsResponseStatusType.getErrorCode())),
+                errorsResponseStatusType.getErrorCode());
         return new ResponseEntity<>(responseWrapper, HttpStatus.BAD_REQUEST);
     }
 

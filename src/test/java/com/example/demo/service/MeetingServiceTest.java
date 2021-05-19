@@ -104,7 +104,7 @@ class MeetingServiceTest {
         Meeting meeting = new Meeting();
         Page<Meeting> meetingPage = new PageImpl<>(Collections.singletonList(meeting));
 
-        when(meetingRepository.findAll(paging)).thenReturn(meetingPage);
+        when(meetingRepository.findAllMeetings(paging)).thenReturn(meetingPage);
 
         Page<Meeting> returnMeetsPage = meetingService.listAllMeetings(0, 10);
         assertEquals(returnMeetsPage.getTotalElements(), 1);
@@ -115,7 +115,7 @@ class MeetingServiceTest {
     void Should_NotReturnPage_When_ThrowDataAccessException() {
 
         Pageable paging = PageRequest.of(0, 10);
-        when(meetingRepository.findAll(paging)).thenThrow(mock(DataAccessException.class));
+        when(meetingRepository.findAllMeetings(paging)).thenThrow(mock(DataAccessException.class));
         SwivelMeetServiceException swivelMeetServiceException = assertThrows(
                 SwivelMeetServiceException.class, () -> meetingService.listAllMeetings(0, 10));
         assertEquals("Read meetings from database was failed.", swivelMeetServiceException.getMessage());
@@ -156,9 +156,10 @@ class MeetingServiceTest {
     @Test
     @DisplayName("Test should pass when meeting object deleted")
     void Should_DeleteMeeting_When_NotThrowException() {
-        doReturn(Optional.of(true)).when(meetingRepository).findById(meetingId);
-        meetingService.deleteMeeting(meetingId);
-        verify(meetingRepository, atLeast(1)).deleteById(meetingId);
+        meeting.setMeetingId(meetingId);
+        doReturn(Optional.of(meeting)).when(meetingRepository).findById(meetingId);
+        meetingService.deleteMeeting(meeting.getMeetingId());
+        verify(meetingRepository).save(meeting);
     }
 
 
@@ -179,7 +180,7 @@ class MeetingServiceTest {
         when(meetingRepository.findById(meetingId)).thenThrow(mock(DataAccessException.class));
         SwivelMeetServiceException swivelMeetServiceException = assertThrows(
                 SwivelMeetServiceException.class, () -> meetingService.deleteMeeting(meetingId));
-        assertEquals("Read/Delete meeting from database was failed.", swivelMeetServiceException.getMessage());
+        assertEquals("Read/Write meeting from database was failed.", swivelMeetServiceException.getMessage());
     }
 
 }

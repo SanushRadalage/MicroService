@@ -19,6 +19,7 @@ import java.util.Optional;
 @Service
 public class MeetingService {
 
+
     private static final String INVALID_MEETING = "Invalid meeting Id.";
     MeetingRepository meetingRepository;
 
@@ -51,12 +52,7 @@ public class MeetingService {
             Optional<Meeting> optionalMeetingFromDb = meetingRepository.findById(meetingId);
 
             if (optionalMeetingFromDb.isPresent()) {
-                Meeting meetingFromDb = optionalMeetingFromDb.get();
-                if (!meetingFromDb.isDeleted()) {
-                    return meetingFromDb;
-                } else {
-                    throw new InvalidMeetingException(INVALID_MEETING);
-                }
+                return optionalMeetingFromDb.get();
             } else {
                 throw new InvalidMeetingException(INVALID_MEETING);
             }
@@ -84,6 +80,9 @@ public class MeetingService {
 
     /**
      * Update meeting
+     *
+     * @param meeting
+     * @return
      */
     public Meeting updateMeeting(Meeting meeting) {
         try {
@@ -91,13 +90,9 @@ public class MeetingService {
 
             if (optionalMeetingFromDb.isPresent()) {
                 Meeting meetingFromDb = optionalMeetingFromDb.get();
-                if (!meetingFromDb.isDeleted()) {
-                    long createdAt = meetingFromDb.getCreatedAt();
-                    meeting.setCreatedAt(createdAt);
-                    return meetingRepository.save(meeting);
-                } else {
-                    throw new InvalidMeetingException(INVALID_MEETING);
-                }
+                long createdAt = meetingFromDb.getCreatedAt();
+                meeting.setCreatedAt(createdAt);
+                return meetingRepository.save(meeting);
             } else
                 throw new InvalidMeetingException(INVALID_MEETING);
 
@@ -108,38 +103,35 @@ public class MeetingService {
 
     /**
      * Update meeting delete flag
+     *
      * @param meetingId
      * @return
      */
-    public void updateMeetingDeleteStatus(String meetingId) {
+    public void deleteMeeting(String meetingId) {
         try {
             Optional<Meeting> optionalMeetingFromDb = meetingRepository.findById(meetingId);
 
             if (optionalMeetingFromDb.isPresent()) {
                 Meeting meetingFromDb = optionalMeetingFromDb.get();
-                if (!meetingFromDb.isDeleted()) {
-                    meetingFromDb.setDeleted(true);
-                    meetingFromDb.setUpdatedAt(System.currentTimeMillis());
-                    meetingRepository.save(meetingFromDb);
-                } else {
-                    throw new InvalidMeetingException(INVALID_MEETING);
-                }
+                meetingFromDb.setDeleted(true);
+                meetingFromDb.setUpdatedAt(System.currentTimeMillis());
+                meetingRepository.save(meetingFromDb);
             } else
                 throw new InvalidMeetingException(INVALID_MEETING);
         } catch (DataAccessException e) {
-            throw new SwivelMeetServiceException("Read/Write meetings from database was failed.", e);
+            throw new SwivelMeetServiceException("Read/Write meeting from database was failed.", e);
         }
     }
 
-    public void deleteMeeting(String meetingId) {
-        try {
-            if (meetingRepository.findById(meetingId).isPresent())
-                meetingRepository.deleteById(meetingId);
-            else
-                throw new InvalidMeetingException(INVALID_MEETING);
-        } catch (DataAccessException e) {
-            throw new SwivelMeetServiceException("Read/Delete meeting from database was failed.", e);
-        }
-    }
+//    public void deleteMeeting(String meetingId) {
+//        try {
+//            if (meetingRepository.findById(meetingId).isPresent())
+//                meetingRepository.deleteById(meetingId);
+//            else
+//                throw new InvalidMeetingException(INVALID_MEETING);
+//        } catch (DataAccessException e) {
+//            throw new SwivelMeetServiceException("Read/Delete meeting from database was failed.", e);
+//        }
+//    }
 }
 

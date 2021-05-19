@@ -13,6 +13,7 @@ spring:
     show-sql: true
 
 inviteesLimit: 5
+userServiceUrl: http://localhost:8081/api/v1/user
 
 
 logging:

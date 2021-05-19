@@ -6,6 +6,7 @@ import com.example.demo.domain.request.UpdateMeetingRequestDto;
 import com.example.demo.exception.InvalidMeetingException;
 import com.example.demo.exception.SwivelMeetServiceException;
 import com.example.demo.service.MeetingService;
+import com.example.demo.service.UserService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +21,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.client.RestTemplate;
 
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
@@ -46,11 +48,13 @@ class MeetingControllerTest {
     private MockMvc mvc;
     @Mock
     private MeetingService meetingService;
+    @Mock
+    private UserService userService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.initMocks(this);
-        MeetingController meetingController = new MeetingController(meetingService, 5);
+        MeetingController meetingController = new MeetingController(meetingService, 5, userService);
         mvc = MockMvcBuilders.standaloneSetup(meetingController).build();
     }
 
@@ -361,7 +365,7 @@ class MeetingControllerTest {
 
         doNothing().when(meetingService).deleteMeeting(meetingId);
 
-        mvc.perform(delete("/api/v1/meet/mid-c2cfbb1d-fa52-477c-b64f-c979c4657e9d")
+        mvc.perform(put("/api/v1/meet/mid-c2cfbb1d-fa52-477c-b64f-c979c4657e9d")
                 .headers(setUpHeader("uid-2997d49d-6ca1-409f-84b1-8f25934cf220", "Asia/Colombo"))
                 .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -376,7 +380,7 @@ class MeetingControllerTest {
 
         doThrow(new SwivelMeetServiceException("Delete meeting from database was failed.")).when(meetingService).deleteMeeting(meetingId);
 
-        mvc.perform(delete("/api/v1/meet/mid-c2cfbb1d-fa52-477c-b64f-c979c4657e9d")
+        mvc.perform(put("/api/v1/meet/mid-c2cfbb1d-fa52-477c-b64f-c979c4657e9d")
                 .headers(setUpHeader("uid-2997d49d-6ca1-409f-84b1-8f25934cf220", "Asia/Colombo"))
                 .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isInternalServerError())
@@ -392,7 +396,7 @@ class MeetingControllerTest {
 
         doThrow(new InvalidMeetingException("Invalid meeting id.")).when(meetingService).deleteMeeting("mid-8427ff8f-e0d6-4ad4-81bf-9121720c5f92");
 
-        mvc.perform(delete("/api/v1/meet/mid-8427ff8f-e0d6-4ad4-81bf-9121720c5f92")
+        mvc.perform(put("/api/v1/meet/mid-8427ff8f-e0d6-4ad4-81bf-9121720c5f92")
                 .headers(setUpHeader("uid-2997d49d-6ca1-409f-84b1-8f25934cf220", "Asia/Colombo"))
                 .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
@@ -406,7 +410,7 @@ class MeetingControllerTest {
     @Test
     @DisplayName("Test should pass when time zone is invalid")
     void Should_ReturnBadRequest_When_InvalidTimeZoneInDeleteMeeting() throws Exception {
-        mvc.perform(delete("/api/v1/meet/mid-c2cfbb1d-fa52-477c-b64f-c979c4657e9d")
+        mvc.perform(put("/api/v1/meet/mid-c2cfbb1d-fa52-477c-b64f-c979c4657e9d")
                 .headers(setUpHeader("uid-2997d49d-6ca1-409f-84b1-8f25934cf220", "Europe/Colombo"))
                 .content(meetingRequestDto.toJson())
                 .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON))

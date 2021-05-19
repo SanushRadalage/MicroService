@@ -1,11 +1,8 @@
 package com.example.demo.wrapper;
 
 import com.example.demo.domain.response.ResponseDto;
-import com.example.demo.exception.SwivelMeetServiceException;
 import com.example.demo.utils.ResponseStatusType;
 import lombok.Getter;
-
-import java.lang.invoke.SwitchPoint;
 
 /**
  * Wrapper for error response format
